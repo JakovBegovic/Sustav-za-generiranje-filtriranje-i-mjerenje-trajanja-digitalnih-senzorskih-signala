@@ -1,0 +1,1024 @@
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 6
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"main.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.comm	InterruptCnt,1,1
+  20              		.global	vrijeme
+  21              		.bss
+  22              		.align	2
+  23              		.type	vrijeme, %object
+  24              		.size	vrijeme, 4
+  25              	vrijeme:
+  26 0000 00000000 		.space	4
+  27              		.comm	str,100,4
+  28              		.global	capturedValue
+  29              		.align	2
+  30              		.type	capturedValue, %object
+  31              		.size	capturedValue, 4
+  32              	capturedValue:
+  33 0004 00000000 		.space	4
+  34              		.global	timerPeriod
+  35              		.data
+  36              		.align	2
+  37              		.type	timerPeriod, %object
+  38              		.size	timerPeriod, 4
+  39              	timerPeriod:
+  40 0000 FFFFFFFF 		.word	-1
+  41              		.global	glitchFilterDelay
+  42              		.type	glitchFilterDelay, %object
+  43              		.size	glitchFilterDelay, 1
+  44              	glitchFilterDelay:
+  45 0004 02       		.byte	2
+  46              		.section	.text.InterruptHandler,"ax",%progbits
+  47              		.align	2
+  48              		.global	InterruptHandler
+  49              		.thumb
+  50              		.thumb_func
+  51              		.type	InterruptHandler, %function
+  52              	InterruptHandler:
+  53              	.LFB64:
+  54              		.file 1 "main.c"
+   1:main.c        **** /********************************************************************************
+   2:main.c        **** * File Name: main.c
+   3:main.c        **** *
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 2
+
+
+   4:main.c        **** * Version : 1.10
+   5:main.c        **** *
+   6:main.c        **** * Description: 
+   7:main.c        **** *  This is a source code for example project of 16 bit Timer UDB Block.
+   8:main.c        **** *
+   9:main.c        **** * Test Result:
+  10:main.c        **** *  Watch capture output on P0_0, tc output on P0_1, and Period, Compare and 
+  11:main.c        **** *  Count value on LCD.
+  12:main.c        **** *
+  13:main.c        **** ********************************************************************************
+  14:main.c        **** * Copyright 2012-2017, Cypress Semiconductor Corporation. All rights reserved.
+  15:main.c        **** * This software is owned by Cypress Semiconductor Corporation and is protected
+  16:main.c        **** * by and subject to worldwide patent and copyright laws and treaties.
+  17:main.c        **** * Therefore, you may use this software only as provided in the license agreement
+  18:main.c        **** * accompanying the software package from which you obtained this software.
+  19:main.c        **** * CYPRESS AND ITS SUPPLIERS MAKE NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  20:main.c        **** * WITH REGARD TO THIS SOFTWARE, INCLUDING, BUT NOT LIMITED TO, NONINFRINGEMENT,
+  21:main.c        **** * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+  22:main.c        **** *******************************************************************************/
+  23:main.c        **** #include <project.h>
+  24:main.c        **** #include<stdio.h>
+  25:main.c        **** 
+  26:main.c        **** volatile uint8 InterruptCnt;
+  27:main.c        **** volatile uint32 vrijeme = 0;
+  28:main.c        **** 
+  29:main.c        **** char str[100];
+  30:main.c        **** 
+  31:main.c        **** volatile uint32 capturedValue = 0;
+  32:main.c        **** uint32 timerPeriod = 4294967295;
+  33:main.c        **** 
+  34:main.c        **** // u boju otkucaja sata Timera u mikrosekundi
+  35:main.c        **** uint8 glitchFilterDelay = 2;
+  36:main.c        ****    
+  37:main.c        **** 
+  38:main.c        **** /*******************************************************************************
+  39:main.c        **** * Define Interrupt service routine and allocate an vector to the Interrupt
+  40:main.c        **** ********************************************************************************/
+  41:main.c        **** CY_ISR(InterruptHandler)
+  42:main.c        **** {
+  55              		.loc 1 42 0
+  56              		.cfi_startproc
+  57              		@ args = 0, pretend = 0, frame = 0
+  58              		@ frame_needed = 1, uses_anonymous_args = 0
+  59 0000 98B5     		push	{r3, r4, r7, lr}
+  60              		.cfi_def_cfa_offset 16
+  61              		.cfi_offset 3, -16
+  62              		.cfi_offset 4, -12
+  63              		.cfi_offset 7, -8
+  64              		.cfi_offset 14, -4
+  65 0002 00AF     		add	r7, sp, #0
+  66              		.cfi_def_cfa_register 7
+  43:main.c        **** 	/* Read Status register in order to clear the sticky Terminal Count (TC) bit 
+  44:main.c        **** 	 * in the status register. Note that the function is not called, but rather 
+  45:main.c        **** 	 * the status is read directly.
+  46:main.c        **** 	 */
+  47:main.c        ****     
+  48:main.c        ****     // Returns the contents of the capture register or the output of the FIFO
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 3
+
+
+  49:main.c        ****     // dobivenu vrijednost oduzmi od maksimalne, pridruži odgodu signala zbog Glitch Filter-a
+  50:main.c        ****     capturedValue = timerPeriod - Timer_1_ReadCapture() + glitchFilterDelay;
+  67              		.loc 1 50 0
+  68 0004 0E4B     		ldr	r3, .L2
+  69 0006 1C68     		ldr	r4, [r3]
+  70 0008 FFF7FEFF 		bl	Timer_1_ReadCapture
+  71 000c 0346     		mov	r3, r0
+  72 000e E31A     		subs	r3, r4, r3
+  73 0010 0C4A     		ldr	r2, .L2+4
+  74 0012 1278     		ldrb	r2, [r2]	@ zero_extendqisi2
+  75 0014 1344     		add	r3, r3, r2
+  76 0016 0C4A     		ldr	r2, .L2+8
+  77 0018 1360     		str	r3, [r2]
+  51:main.c        ****     
+  52:main.c        ****     // pretvaranje u mikrosekunde:
+  53:main.c        ****     capturedValue = capturedValue / 2;
+  78              		.loc 1 53 0
+  79 001a 0B4B     		ldr	r3, .L2+8
+  80 001c 1B68     		ldr	r3, [r3]
+  81 001e 5B08     		lsrs	r3, r3, #1
+  82 0020 094A     		ldr	r2, .L2+8
+  83 0022 1360     		str	r3, [r2]
+  54:main.c        ****     
+  55:main.c        ****    	Timer_1_STATUS;
+  84              		.loc 1 55 0
+  85 0024 094B     		ldr	r3, .L2+12
+  86 0026 1B78     		ldrb	r3, [r3]
+  56:main.c        ****     Timer_1_ReadStatusRegister();
+  87              		.loc 1 56 0
+  88 0028 FFF7FEFF 		bl	Timer_1_ReadStatusRegister
+  57:main.c        ****     
+  58:main.c        **** 	/* Increment the Counter to indicate the keep track of the number of 
+  59:main.c        ****      * interrupts received */
+  60:main.c        ****     InterruptCnt++;    
+  89              		.loc 1 60 0
+  90 002c 084B     		ldr	r3, .L2+16
+  91 002e 1B78     		ldrb	r3, [r3]
+  92 0030 DBB2     		uxtb	r3, r3
+  93 0032 0133     		adds	r3, r3, #1
+  94 0034 DAB2     		uxtb	r2, r3
+  95 0036 064B     		ldr	r3, .L2+16
+  96 0038 1A70     		strb	r2, [r3]
+  61:main.c        **** }
+  97              		.loc 1 61 0
+  98 003a 00BF     		nop
+  99 003c 98BD     		pop	{r3, r4, r7, pc}
+ 100              	.L3:
+ 101 003e 00BF     		.align	2
+ 102              	.L2:
+ 103 0040 00000000 		.word	timerPeriod
+ 104 0044 00000000 		.word	glitchFilterDelay
+ 105 0048 00000000 		.word	capturedValue
+ 106 004c 63640040 		.word	1073767523
+ 107 0050 00000000 		.word	InterruptCnt
+ 108              		.cfi_endproc
+ 109              	.LFE64:
+ 110              		.size	InterruptHandler, .-InterruptHandler
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 4
+
+
+ 111              		.section	.rodata
+ 112              		.align	2
+ 113              	.LC0:
+ 114 0000 0A567269 		.ascii	"\012Vrijeme:  %lu\015\012\000"
+ 114      6A656D65 
+ 114      3A202025 
+ 114      6C750D0A 
+ 114      00
+ 115 0011 000000   		.align	2
+ 116              	.LC1:
+ 117 0014 50657269 		.ascii	"Period:  %lu\015\012\000"
+ 117      6F643A20 
+ 117      20256C75 
+ 117      0D0A00
+ 118 0023 00       		.align	2
+ 119              	.LC2:
+ 120 0024 63617074 		.ascii	"capturedValue: %lu\015\012\000"
+ 120      75726564 
+ 120      56616C75 
+ 120      653A2025 
+ 120      6C750D0A 
+ 121 0039 000000   		.align	2
+ 122              	.LC3:
+ 123 003c 496E7443 		.ascii	"IntCnt: %d\015\012\000"
+ 123      6E743A20 
+ 123      25640D0A 
+ 123      00
+ 124              		.section	.text.main,"ax",%progbits
+ 125              		.align	2
+ 126              		.global	main
+ 127              		.thumb
+ 128              		.thumb_func
+ 129              		.type	main, %function
+ 130              	main:
+ 131              	.LFB65:
+  62:main.c        **** 
+  63:main.c        **** 
+  64:main.c        **** /*******************************************************************************
+  65:main.c        **** * Function Name: main
+  66:main.c        **** ********************************************************************************
+  67:main.c        **** *
+  68:main.c        **** * Summary:
+  69:main.c        **** * Main function performs following functions:
+  70:main.c        **** * 1: Enables the clock
+  71:main.c        **** * 2: Start the Timer
+  72:main.c        **** * 3: Initializes the LCD
+  73:main.c        **** * 4: Print Period, capture, counter value on LCD
+  74:main.c        **** * 
+  75:main.c        **** * Parameters:
+  76:main.c        **** *  None.
+  77:main.c        **** *
+  78:main.c        **** * Return:
+  79:main.c        **** *  None.
+  80:main.c        **** *
+  81:main.c        **** *******************************************************************************/
+  82:main.c        **** int main()
+  83:main.c        **** {   
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 5
+
+
+ 132              		.loc 1 83 0
+ 133              		.cfi_startproc
+ 134              		@ args = 0, pretend = 0, frame = 0
+ 135              		@ frame_needed = 1, uses_anonymous_args = 0
+ 136 0000 80B5     		push	{r7, lr}
+ 137              		.cfi_def_cfa_offset 8
+ 138              		.cfi_offset 7, -8
+ 139              		.cfi_offset 14, -4
+ 140 0002 00AF     		add	r7, sp, #0
+ 141              		.cfi_def_cfa_register 7
+  84:main.c        ****     // Enable the global interrupt */
+  85:main.c        ****     CyGlobalIntEnable;
+ 142              		.loc 1 85 0
+ 143              		.syntax unified
+ 144              	@ 85 "main.c" 1
+ 145 0004 62B6     		CPSIE   i
+ 146              	@ 0 "" 2
+  86:main.c        ****     
+  87:main.c        ****     // Enable the Interrupt component connected to Timer interrupt */
+  88:main.c        ****     TimerISR_StartEx(InterruptHandler);
+ 147              		.loc 1 88 0
+ 148              		.thumb
+ 149              		.syntax unified
+ 150 0006 2E48     		ldr	r0, .L7
+ 151 0008 FFF7FEFF 		bl	TimerISR_StartEx
+  89:main.c        **** 
+  90:main.c        **** 	// Start the components */
+  91:main.c        **** 
+  92:main.c        ****     USBUART_Start(0, USBUART_5V_OPERATION);
+ 152              		.loc 1 92 0
+ 153 000c 0121     		movs	r1, #1
+ 154 000e 0020     		movs	r0, #0
+ 155 0010 FFF7FEFF 		bl	USBUART_Start
+  93:main.c        ****     while(USBUART_GetConfiguration() == 0){}
+ 156              		.loc 1 93 0
+ 157 0014 00BF     		nop
+ 158              	.L5:
+ 159              		.loc 1 93 0 is_stmt 0 discriminator 1
+ 160 0016 FFF7FEFF 		bl	USBUART_GetConfiguration
+ 161 001a 0346     		mov	r3, r0
+ 162 001c 002B     		cmp	r3, #0
+ 163 001e FAD0     		beq	.L5
+  94:main.c        ****     
+  95:main.c        ****     // Enable the Timer
+  96:main.c        ****     Timer_1_Start();
+ 164              		.loc 1 96 0 is_stmt 1
+ 165 0020 FFF7FEFF 		bl	Timer_1_Start
+ 166              	.L6:
+  97:main.c        ****      
+  98:main.c        ****     for(;;)
+  99:main.c        ****     { 
+ 100:main.c        ****         sprintf( str, "\nVrijeme:  %lu\r\n", vrijeme );
+ 167              		.loc 1 100 0 discriminator 1
+ 168 0024 274B     		ldr	r3, .L7+4
+ 169 0026 1B68     		ldr	r3, [r3]
+ 170 0028 1A46     		mov	r2, r3
+ 171 002a 2749     		ldr	r1, .L7+8
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 6
+
+
+ 172 002c 2748     		ldr	r0, .L7+12
+ 173 002e FFF7FEFF 		bl	sprintf
+ 101:main.c        ****         USBUART_PutString(str);
+ 174              		.loc 1 101 0 discriminator 1
+ 175 0032 2648     		ldr	r0, .L7+12
+ 176 0034 FFF7FEFF 		bl	USBUART_PutString
+ 102:main.c        ****  
+ 103:main.c        ****         CyDelay(100);
+ 177              		.loc 1 103 0 discriminator 1
+ 178 0038 6420     		movs	r0, #100
+ 179 003a FFF7FEFF 		bl	CyDelay
+ 104:main.c        ****         vrijeme += 100;
+ 180              		.loc 1 104 0 discriminator 1
+ 181 003e 214B     		ldr	r3, .L7+4
+ 182 0040 1B68     		ldr	r3, [r3]
+ 183 0042 6433     		adds	r3, r3, #100
+ 184 0044 1F4A     		ldr	r2, .L7+4
+ 185 0046 1360     		str	r3, [r2]
+ 105:main.c        ****         
+ 106:main.c        ****         sprintf( str, "Period:  %lu\r\n", Timer_1_ReadPeriod() );
+ 186              		.loc 1 106 0 discriminator 1
+ 187 0048 FFF7FEFF 		bl	Timer_1_ReadPeriod
+ 188 004c 0346     		mov	r3, r0
+ 189 004e 1A46     		mov	r2, r3
+ 190 0050 1F49     		ldr	r1, .L7+16
+ 191 0052 1E48     		ldr	r0, .L7+12
+ 192 0054 FFF7FEFF 		bl	sprintf
+ 107:main.c        ****         USBUART_PutString(str);
+ 193              		.loc 1 107 0 discriminator 1
+ 194 0058 1C48     		ldr	r0, .L7+12
+ 195 005a FFF7FEFF 		bl	USBUART_PutString
+ 108:main.c        ****         
+ 109:main.c        ****         CyDelay(100);
+ 196              		.loc 1 109 0 discriminator 1
+ 197 005e 6420     		movs	r0, #100
+ 198 0060 FFF7FEFF 		bl	CyDelay
+ 110:main.c        ****         vrijeme += 100;
+ 199              		.loc 1 110 0 discriminator 1
+ 200 0064 174B     		ldr	r3, .L7+4
+ 201 0066 1B68     		ldr	r3, [r3]
+ 202 0068 6433     		adds	r3, r3, #100
+ 203 006a 164A     		ldr	r2, .L7+4
+ 204 006c 1360     		str	r3, [r2]
+ 111:main.c        ****         
+ 112:main.c        ****         /*
+ 113:main.c        ****         // To display Capture value 
+ 114:main.c        ****         sprintf( str, "Capture: %lu\r\n", Timer_1_ReadCapture() );
+ 115:main.c        ****         USBUART_PutString(str);
+ 116:main.c        ****         CyDelay(100);
+ 117:main.c        ****         */
+ 118:main.c        ****         
+ 119:main.c        ****         /*
+ 120:main.c        ****         // Forces a capture, and then returns the capture value
+ 121:main.c        ****         sprintf( str, "Counter: %lu\r\n", Timer_1_ReadCounter() );
+ 122:main.c        ****         USBUART_PutString(str);
+ 123:main.c        ****         
+ 124:main.c        ****         CyDelay(100);
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 7
+
+
+ 125:main.c        ****         vrijeme += 100;
+ 126:main.c        ****         */
+ 127:main.c        ****         sprintf( str, "capturedValue: %lu\r\n", capturedValue );
+ 205              		.loc 1 127 0 discriminator 1
+ 206 006e 194B     		ldr	r3, .L7+20
+ 207 0070 1B68     		ldr	r3, [r3]
+ 208 0072 1A46     		mov	r2, r3
+ 209 0074 1849     		ldr	r1, .L7+24
+ 210 0076 1548     		ldr	r0, .L7+12
+ 211 0078 FFF7FEFF 		bl	sprintf
+ 128:main.c        ****         USBUART_PutString(str);
+ 212              		.loc 1 128 0 discriminator 1
+ 213 007c 1348     		ldr	r0, .L7+12
+ 214 007e FFF7FEFF 		bl	USBUART_PutString
+ 129:main.c        ****         
+ 130:main.c        ****         CyDelay(100);
+ 215              		.loc 1 130 0 discriminator 1
+ 216 0082 6420     		movs	r0, #100
+ 217 0084 FFF7FEFF 		bl	CyDelay
+ 131:main.c        ****         vrijeme += 100;
+ 218              		.loc 1 131 0 discriminator 1
+ 219 0088 0E4B     		ldr	r3, .L7+4
+ 220 008a 1B68     		ldr	r3, [r3]
+ 221 008c 6433     		adds	r3, r3, #100
+ 222 008e 0D4A     		ldr	r2, .L7+4
+ 223 0090 1360     		str	r3, [r2]
+ 132:main.c        ****         
+ 133:main.c        ****         // To display Interrupt count 
+ 134:main.c        ****         sprintf( str, "IntCnt: %d\r\n", InterruptCnt );
+ 224              		.loc 1 134 0 discriminator 1
+ 225 0092 124B     		ldr	r3, .L7+28
+ 226 0094 1B78     		ldrb	r3, [r3]
+ 227 0096 DBB2     		uxtb	r3, r3
+ 228 0098 1A46     		mov	r2, r3
+ 229 009a 1149     		ldr	r1, .L7+32
+ 230 009c 0B48     		ldr	r0, .L7+12
+ 231 009e FFF7FEFF 		bl	sprintf
+ 135:main.c        ****         USBUART_PutString(str);
+ 232              		.loc 1 135 0 discriminator 1
+ 233 00a2 0A48     		ldr	r0, .L7+12
+ 234 00a4 FFF7FEFF 		bl	USBUART_PutString
+ 136:main.c        **** 		
+ 137:main.c        ****         CyDelay(5000);
+ 235              		.loc 1 137 0 discriminator 1
+ 236 00a8 41F28830 		movw	r0, #5000
+ 237 00ac FFF7FEFF 		bl	CyDelay
+ 138:main.c        ****         vrijeme += 5000;
+ 238              		.loc 1 138 0 discriminator 1
+ 239 00b0 044B     		ldr	r3, .L7+4
+ 240 00b2 1B68     		ldr	r3, [r3]
+ 241 00b4 03F59C53 		add	r3, r3, #4992
+ 242 00b8 0833     		adds	r3, r3, #8
+ 243 00ba 024A     		ldr	r2, .L7+4
+ 244 00bc 1360     		str	r3, [r2]
+ 139:main.c        ****     }
+ 245              		.loc 1 139 0 discriminator 1
+ 246 00be B1E7     		b	.L6
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 8
+
+
+ 247              	.L8:
+ 248              		.align	2
+ 249              	.L7:
+ 250 00c0 00000000 		.word	InterruptHandler
+ 251 00c4 00000000 		.word	vrijeme
+ 252 00c8 00000000 		.word	.LC0
+ 253 00cc 00000000 		.word	str
+ 254 00d0 14000000 		.word	.LC1
+ 255 00d4 00000000 		.word	capturedValue
+ 256 00d8 24000000 		.word	.LC2
+ 257 00dc 00000000 		.word	InterruptCnt
+ 258 00e0 3C000000 		.word	.LC3
+ 259              		.cfi_endproc
+ 260              	.LFE65:
+ 261              		.size	main, .-main
+ 262              		.text
+ 263              	.Letext0:
+ 264              		.file 2 "c:\\program files (x86)\\cypress\\psoc creator\\4.2\\psoc creator\\import\\gnu\\arm\\5.4.
+ 265              		.file 3 "c:\\program files (x86)\\cypress\\psoc creator\\4.2\\psoc creator\\import\\gnu\\arm\\5.4.
+ 266              		.file 4 "Generated_Source\\PSoC5/cytypes.h"
+ 267              		.file 5 "Generated_Source\\PSoC5/core_cm3.h"
+ 268              		.section	.debug_info,"",%progbits
+ 269              	.Ldebug_info0:
+ 270 0000 7C010000 		.4byte	0x17c
+ 271 0004 0400     		.2byte	0x4
+ 272 0006 00000000 		.4byte	.Ldebug_abbrev0
+ 273 000a 04       		.byte	0x4
+ 274 000b 01       		.uleb128 0x1
+ 275 000c 08000000 		.4byte	.LASF27
+ 276 0010 0C       		.byte	0xc
+ 277 0011 CF010000 		.4byte	.LASF28
+ 278 0015 2A010000 		.4byte	.LASF29
+ 279 0019 00000000 		.4byte	.Ldebug_ranges0+0
+ 280 001d 00000000 		.4byte	0
+ 281 0021 00000000 		.4byte	.Ldebug_line0
+ 282 0025 02       		.uleb128 0x2
+ 283 0026 01       		.byte	0x1
+ 284 0027 06       		.byte	0x6
+ 285 0028 0C020000 		.4byte	.LASF0
+ 286 002c 02       		.uleb128 0x2
+ 287 002d 01       		.byte	0x1
+ 288 002e 08       		.byte	0x8
+ 289 002f C5000000 		.4byte	.LASF1
+ 290 0033 02       		.uleb128 0x2
+ 291 0034 02       		.byte	0x2
+ 292 0035 05       		.byte	0x5
+ 293 0036 DB010000 		.4byte	.LASF2
+ 294 003a 02       		.uleb128 0x2
+ 295 003b 02       		.byte	0x2
+ 296 003c 07       		.byte	0x7
+ 297 003d EA000000 		.4byte	.LASF3
+ 298 0041 03       		.uleb128 0x3
+ 299 0042 A2000000 		.4byte	.LASF9
+ 300 0046 02       		.byte	0x2
+ 301 0047 3F       		.byte	0x3f
+ 302 0048 4C000000 		.4byte	0x4c
+ 303 004c 02       		.uleb128 0x2
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 9
+
+
+ 304 004d 04       		.byte	0x4
+ 305 004e 05       		.byte	0x5
+ 306 004f F7010000 		.4byte	.LASF4
+ 307 0053 02       		.uleb128 0x2
+ 308 0054 04       		.byte	0x4
+ 309 0055 07       		.byte	0x7
+ 310 0056 D8000000 		.4byte	.LASF5
+ 311 005a 02       		.uleb128 0x2
+ 312 005b 08       		.byte	0x8
+ 313 005c 05       		.byte	0x5
+ 314 005d C1010000 		.4byte	.LASF6
+ 315 0061 02       		.uleb128 0x2
+ 316 0062 08       		.byte	0x8
+ 317 0063 07       		.byte	0x7
+ 318 0064 88010000 		.4byte	.LASF7
+ 319 0068 04       		.uleb128 0x4
+ 320 0069 04       		.byte	0x4
+ 321 006a 05       		.byte	0x5
+ 322 006b 696E7400 		.ascii	"int\000"
+ 323 006f 02       		.uleb128 0x2
+ 324 0070 04       		.byte	0x4
+ 325 0071 07       		.byte	0x7
+ 326 0072 1D010000 		.4byte	.LASF8
+ 327 0076 03       		.uleb128 0x3
+ 328 0077 B0010000 		.4byte	.LASF10
+ 329 007b 03       		.byte	0x3
+ 330 007c 2C       		.byte	0x2c
+ 331 007d 41000000 		.4byte	0x41
+ 332 0081 05       		.uleb128 0x5
+ 333 0082 BF000000 		.4byte	.LASF11
+ 334 0086 04       		.byte	0x4
+ 335 0087 E401     		.2byte	0x1e4
+ 336 0089 2C000000 		.4byte	0x2c
+ 337 008d 05       		.uleb128 0x5
+ 338 008e 16010000 		.4byte	.LASF12
+ 339 0092 04       		.byte	0x4
+ 340 0093 E601     		.2byte	0x1e6
+ 341 0095 53000000 		.4byte	0x53
+ 342 0099 02       		.uleb128 0x2
+ 343 009a 04       		.byte	0x4
+ 344 009b 04       		.byte	0x4
+ 345 009c B9000000 		.4byte	.LASF13
+ 346 00a0 02       		.uleb128 0x2
+ 347 00a1 08       		.byte	0x8
+ 348 00a2 04       		.byte	0x4
+ 349 00a3 0A010000 		.4byte	.LASF14
+ 350 00a7 02       		.uleb128 0x2
+ 351 00a8 01       		.byte	0x1
+ 352 00a9 08       		.byte	0x8
+ 353 00aa D6010000 		.4byte	.LASF15
+ 354 00ae 05       		.uleb128 0x5
+ 355 00af D3000000 		.4byte	.LASF16
+ 356 00b3 04       		.byte	0x4
+ 357 00b4 8E02     		.2byte	0x28e
+ 358 00b6 BA000000 		.4byte	0xba
+ 359 00ba 06       		.uleb128 0x6
+ 360 00bb 81000000 		.4byte	0x81
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 10
+
+
+ 361 00bf 06       		.uleb128 0x6
+ 362 00c0 8D000000 		.4byte	0x8d
+ 363 00c4 02       		.uleb128 0x2
+ 364 00c5 08       		.byte	0x8
+ 365 00c6 04       		.byte	0x4
+ 366 00c7 00020000 		.4byte	.LASF17
+ 367 00cb 02       		.uleb128 0x2
+ 368 00cc 04       		.byte	0x4
+ 369 00cd 07       		.byte	0x7
+ 370 00ce B8010000 		.4byte	.LASF18
+ 371 00d2 07       		.uleb128 0x7
+ 372 00d3 9F010000 		.4byte	.LASF19
+ 373 00d7 01       		.byte	0x1
+ 374 00d8 29       		.byte	0x29
+ 375 00d9 00000000 		.4byte	.LFB64
+ 376 00dd 54000000 		.4byte	.LFE64-.LFB64
+ 377 00e1 01       		.uleb128 0x1
+ 378 00e2 9C       		.byte	0x9c
+ 379 00e3 08       		.uleb128 0x8
+ 380 00e4 11010000 		.4byte	.LASF20
+ 381 00e8 01       		.byte	0x1
+ 382 00e9 52       		.byte	0x52
+ 383 00ea 68000000 		.4byte	0x68
+ 384 00ee 00000000 		.4byte	.LFB65
+ 385 00f2 E4000000 		.4byte	.LFE65-.LFB65
+ 386 00f6 01       		.uleb128 0x1
+ 387 00f7 9C       		.byte	0x9c
+ 388 00f8 09       		.uleb128 0x9
+ 389 00f9 FD000000 		.4byte	.LASF21
+ 390 00fd 05       		.byte	0x5
+ 391 00fe 1207     		.2byte	0x712
+ 392 0100 04010000 		.4byte	0x104
+ 393 0104 06       		.uleb128 0x6
+ 394 0105 76000000 		.4byte	0x76
+ 395 0109 0A       		.uleb128 0xa
+ 396 010a AC000000 		.4byte	.LASF22
+ 397 010e 01       		.byte	0x1
+ 398 010f 1A       		.byte	0x1a
+ 399 0110 BA000000 		.4byte	0xba
+ 400 0114 05       		.uleb128 0x5
+ 401 0115 03       		.byte	0x3
+ 402 0116 00000000 		.4byte	InterruptCnt
+ 403 011a 0A       		.uleb128 0xa
+ 404 011b 00000000 		.4byte	.LASF23
+ 405 011f 01       		.byte	0x1
+ 406 0120 1B       		.byte	0x1b
+ 407 0121 BF000000 		.4byte	0xbf
+ 408 0125 05       		.uleb128 0x5
+ 409 0126 03       		.byte	0x3
+ 410 0127 00000000 		.4byte	vrijeme
+ 411 012b 0B       		.uleb128 0xb
+ 412 012c A7000000 		.4byte	0xa7
+ 413 0130 3B010000 		.4byte	0x13b
+ 414 0134 0C       		.uleb128 0xc
+ 415 0135 CB000000 		.4byte	0xcb
+ 416 0139 63       		.byte	0x63
+ 417 013a 00       		.byte	0
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 11
+
+
+ 418 013b 0D       		.uleb128 0xd
+ 419 013c 73747200 		.ascii	"str\000"
+ 420 0140 01       		.byte	0x1
+ 421 0141 1D       		.byte	0x1d
+ 422 0142 2B010000 		.4byte	0x12b
+ 423 0146 05       		.uleb128 0x5
+ 424 0147 03       		.byte	0x3
+ 425 0148 00000000 		.4byte	str
+ 426 014c 0A       		.uleb128 0xa
+ 427 014d 18020000 		.4byte	.LASF24
+ 428 0151 01       		.byte	0x1
+ 429 0152 1F       		.byte	0x1f
+ 430 0153 BF000000 		.4byte	0xbf
+ 431 0157 05       		.uleb128 0x5
+ 432 0158 03       		.byte	0x3
+ 433 0159 00000000 		.4byte	capturedValue
+ 434 015d 0A       		.uleb128 0xa
+ 435 015e 96000000 		.4byte	.LASF25
+ 436 0162 01       		.byte	0x1
+ 437 0163 20       		.byte	0x20
+ 438 0164 8D000000 		.4byte	0x8d
+ 439 0168 05       		.uleb128 0x5
+ 440 0169 03       		.byte	0x3
+ 441 016a 00000000 		.4byte	timerPeriod
+ 442 016e 0A       		.uleb128 0xa
+ 443 016f E5010000 		.4byte	.LASF26
+ 444 0173 01       		.byte	0x1
+ 445 0174 23       		.byte	0x23
+ 446 0175 81000000 		.4byte	0x81
+ 447 0179 05       		.uleb128 0x5
+ 448 017a 03       		.byte	0x3
+ 449 017b 00000000 		.4byte	glitchFilterDelay
+ 450 017f 00       		.byte	0
+ 451              		.section	.debug_abbrev,"",%progbits
+ 452              	.Ldebug_abbrev0:
+ 453 0000 01       		.uleb128 0x1
+ 454 0001 11       		.uleb128 0x11
+ 455 0002 01       		.byte	0x1
+ 456 0003 25       		.uleb128 0x25
+ 457 0004 0E       		.uleb128 0xe
+ 458 0005 13       		.uleb128 0x13
+ 459 0006 0B       		.uleb128 0xb
+ 460 0007 03       		.uleb128 0x3
+ 461 0008 0E       		.uleb128 0xe
+ 462 0009 1B       		.uleb128 0x1b
+ 463 000a 0E       		.uleb128 0xe
+ 464 000b 55       		.uleb128 0x55
+ 465 000c 17       		.uleb128 0x17
+ 466 000d 11       		.uleb128 0x11
+ 467 000e 01       		.uleb128 0x1
+ 468 000f 10       		.uleb128 0x10
+ 469 0010 17       		.uleb128 0x17
+ 470 0011 00       		.byte	0
+ 471 0012 00       		.byte	0
+ 472 0013 02       		.uleb128 0x2
+ 473 0014 24       		.uleb128 0x24
+ 474 0015 00       		.byte	0
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 12
+
+
+ 475 0016 0B       		.uleb128 0xb
+ 476 0017 0B       		.uleb128 0xb
+ 477 0018 3E       		.uleb128 0x3e
+ 478 0019 0B       		.uleb128 0xb
+ 479 001a 03       		.uleb128 0x3
+ 480 001b 0E       		.uleb128 0xe
+ 481 001c 00       		.byte	0
+ 482 001d 00       		.byte	0
+ 483 001e 03       		.uleb128 0x3
+ 484 001f 16       		.uleb128 0x16
+ 485 0020 00       		.byte	0
+ 486 0021 03       		.uleb128 0x3
+ 487 0022 0E       		.uleb128 0xe
+ 488 0023 3A       		.uleb128 0x3a
+ 489 0024 0B       		.uleb128 0xb
+ 490 0025 3B       		.uleb128 0x3b
+ 491 0026 0B       		.uleb128 0xb
+ 492 0027 49       		.uleb128 0x49
+ 493 0028 13       		.uleb128 0x13
+ 494 0029 00       		.byte	0
+ 495 002a 00       		.byte	0
+ 496 002b 04       		.uleb128 0x4
+ 497 002c 24       		.uleb128 0x24
+ 498 002d 00       		.byte	0
+ 499 002e 0B       		.uleb128 0xb
+ 500 002f 0B       		.uleb128 0xb
+ 501 0030 3E       		.uleb128 0x3e
+ 502 0031 0B       		.uleb128 0xb
+ 503 0032 03       		.uleb128 0x3
+ 504 0033 08       		.uleb128 0x8
+ 505 0034 00       		.byte	0
+ 506 0035 00       		.byte	0
+ 507 0036 05       		.uleb128 0x5
+ 508 0037 16       		.uleb128 0x16
+ 509 0038 00       		.byte	0
+ 510 0039 03       		.uleb128 0x3
+ 511 003a 0E       		.uleb128 0xe
+ 512 003b 3A       		.uleb128 0x3a
+ 513 003c 0B       		.uleb128 0xb
+ 514 003d 3B       		.uleb128 0x3b
+ 515 003e 05       		.uleb128 0x5
+ 516 003f 49       		.uleb128 0x49
+ 517 0040 13       		.uleb128 0x13
+ 518 0041 00       		.byte	0
+ 519 0042 00       		.byte	0
+ 520 0043 06       		.uleb128 0x6
+ 521 0044 35       		.uleb128 0x35
+ 522 0045 00       		.byte	0
+ 523 0046 49       		.uleb128 0x49
+ 524 0047 13       		.uleb128 0x13
+ 525 0048 00       		.byte	0
+ 526 0049 00       		.byte	0
+ 527 004a 07       		.uleb128 0x7
+ 528 004b 2E       		.uleb128 0x2e
+ 529 004c 00       		.byte	0
+ 530 004d 3F       		.uleb128 0x3f
+ 531 004e 19       		.uleb128 0x19
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 13
+
+
+ 532 004f 03       		.uleb128 0x3
+ 533 0050 0E       		.uleb128 0xe
+ 534 0051 3A       		.uleb128 0x3a
+ 535 0052 0B       		.uleb128 0xb
+ 536 0053 3B       		.uleb128 0x3b
+ 537 0054 0B       		.uleb128 0xb
+ 538 0055 27       		.uleb128 0x27
+ 539 0056 19       		.uleb128 0x19
+ 540 0057 11       		.uleb128 0x11
+ 541 0058 01       		.uleb128 0x1
+ 542 0059 12       		.uleb128 0x12
+ 543 005a 06       		.uleb128 0x6
+ 544 005b 40       		.uleb128 0x40
+ 545 005c 18       		.uleb128 0x18
+ 546 005d 9642     		.uleb128 0x2116
+ 547 005f 19       		.uleb128 0x19
+ 548 0060 00       		.byte	0
+ 549 0061 00       		.byte	0
+ 550 0062 08       		.uleb128 0x8
+ 551 0063 2E       		.uleb128 0x2e
+ 552 0064 00       		.byte	0
+ 553 0065 3F       		.uleb128 0x3f
+ 554 0066 19       		.uleb128 0x19
+ 555 0067 03       		.uleb128 0x3
+ 556 0068 0E       		.uleb128 0xe
+ 557 0069 3A       		.uleb128 0x3a
+ 558 006a 0B       		.uleb128 0xb
+ 559 006b 3B       		.uleb128 0x3b
+ 560 006c 0B       		.uleb128 0xb
+ 561 006d 49       		.uleb128 0x49
+ 562 006e 13       		.uleb128 0x13
+ 563 006f 11       		.uleb128 0x11
+ 564 0070 01       		.uleb128 0x1
+ 565 0071 12       		.uleb128 0x12
+ 566 0072 06       		.uleb128 0x6
+ 567 0073 40       		.uleb128 0x40
+ 568 0074 18       		.uleb128 0x18
+ 569 0075 9642     		.uleb128 0x2116
+ 570 0077 19       		.uleb128 0x19
+ 571 0078 00       		.byte	0
+ 572 0079 00       		.byte	0
+ 573 007a 09       		.uleb128 0x9
+ 574 007b 34       		.uleb128 0x34
+ 575 007c 00       		.byte	0
+ 576 007d 03       		.uleb128 0x3
+ 577 007e 0E       		.uleb128 0xe
+ 578 007f 3A       		.uleb128 0x3a
+ 579 0080 0B       		.uleb128 0xb
+ 580 0081 3B       		.uleb128 0x3b
+ 581 0082 05       		.uleb128 0x5
+ 582 0083 49       		.uleb128 0x49
+ 583 0084 13       		.uleb128 0x13
+ 584 0085 3F       		.uleb128 0x3f
+ 585 0086 19       		.uleb128 0x19
+ 586 0087 3C       		.uleb128 0x3c
+ 587 0088 19       		.uleb128 0x19
+ 588 0089 00       		.byte	0
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 14
+
+
+ 589 008a 00       		.byte	0
+ 590 008b 0A       		.uleb128 0xa
+ 591 008c 34       		.uleb128 0x34
+ 592 008d 00       		.byte	0
+ 593 008e 03       		.uleb128 0x3
+ 594 008f 0E       		.uleb128 0xe
+ 595 0090 3A       		.uleb128 0x3a
+ 596 0091 0B       		.uleb128 0xb
+ 597 0092 3B       		.uleb128 0x3b
+ 598 0093 0B       		.uleb128 0xb
+ 599 0094 49       		.uleb128 0x49
+ 600 0095 13       		.uleb128 0x13
+ 601 0096 3F       		.uleb128 0x3f
+ 602 0097 19       		.uleb128 0x19
+ 603 0098 02       		.uleb128 0x2
+ 604 0099 18       		.uleb128 0x18
+ 605 009a 00       		.byte	0
+ 606 009b 00       		.byte	0
+ 607 009c 0B       		.uleb128 0xb
+ 608 009d 01       		.uleb128 0x1
+ 609 009e 01       		.byte	0x1
+ 610 009f 49       		.uleb128 0x49
+ 611 00a0 13       		.uleb128 0x13
+ 612 00a1 01       		.uleb128 0x1
+ 613 00a2 13       		.uleb128 0x13
+ 614 00a3 00       		.byte	0
+ 615 00a4 00       		.byte	0
+ 616 00a5 0C       		.uleb128 0xc
+ 617 00a6 21       		.uleb128 0x21
+ 618 00a7 00       		.byte	0
+ 619 00a8 49       		.uleb128 0x49
+ 620 00a9 13       		.uleb128 0x13
+ 621 00aa 2F       		.uleb128 0x2f
+ 622 00ab 0B       		.uleb128 0xb
+ 623 00ac 00       		.byte	0
+ 624 00ad 00       		.byte	0
+ 625 00ae 0D       		.uleb128 0xd
+ 626 00af 34       		.uleb128 0x34
+ 627 00b0 00       		.byte	0
+ 628 00b1 03       		.uleb128 0x3
+ 629 00b2 08       		.uleb128 0x8
+ 630 00b3 3A       		.uleb128 0x3a
+ 631 00b4 0B       		.uleb128 0xb
+ 632 00b5 3B       		.uleb128 0x3b
+ 633 00b6 0B       		.uleb128 0xb
+ 634 00b7 49       		.uleb128 0x49
+ 635 00b8 13       		.uleb128 0x13
+ 636 00b9 3F       		.uleb128 0x3f
+ 637 00ba 19       		.uleb128 0x19
+ 638 00bb 02       		.uleb128 0x2
+ 639 00bc 18       		.uleb128 0x18
+ 640 00bd 00       		.byte	0
+ 641 00be 00       		.byte	0
+ 642 00bf 00       		.byte	0
+ 643              		.section	.debug_aranges,"",%progbits
+ 644 0000 24000000 		.4byte	0x24
+ 645 0004 0200     		.2byte	0x2
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 15
+
+
+ 646 0006 00000000 		.4byte	.Ldebug_info0
+ 647 000a 04       		.byte	0x4
+ 648 000b 00       		.byte	0
+ 649 000c 0000     		.2byte	0
+ 650 000e 0000     		.2byte	0
+ 651 0010 00000000 		.4byte	.LFB64
+ 652 0014 54000000 		.4byte	.LFE64-.LFB64
+ 653 0018 00000000 		.4byte	.LFB65
+ 654 001c E4000000 		.4byte	.LFE65-.LFB65
+ 655 0020 00000000 		.4byte	0
+ 656 0024 00000000 		.4byte	0
+ 657              		.section	.debug_ranges,"",%progbits
+ 658              	.Ldebug_ranges0:
+ 659 0000 00000000 		.4byte	.LFB64
+ 660 0004 54000000 		.4byte	.LFE64
+ 661 0008 00000000 		.4byte	.LFB65
+ 662 000c E4000000 		.4byte	.LFE65
+ 663 0010 00000000 		.4byte	0
+ 664 0014 00000000 		.4byte	0
+ 665              		.section	.debug_line,"",%progbits
+ 666              	.Ldebug_line0:
+ 667 0000 DA010000 		.section	.debug_str,"MS",%progbits,1
+ 667      02004C01 
+ 667      00000201 
+ 667      FB0E0D00 
+ 667      01010101 
+ 668              	.LASF23:
+ 669 0000 7672696A 		.ascii	"vrijeme\000"
+ 669      656D6500 
+ 670              	.LASF27:
+ 671 0008 474E5520 		.ascii	"GNU C11 5.4.1 20160609 (release) [ARM/embedded-5-br"
+ 671      43313120 
+ 671      352E342E 
+ 671      31203230 
+ 671      31363036 
+ 672 003b 616E6368 		.ascii	"anch revision 237715] -mcpu=cortex-m3 -mthumb -g -O"
+ 672      20726576 
+ 672      6973696F 
+ 672      6E203233 
+ 672      37373135 
+ 673 006e 30202D66 		.ascii	"0 -ffunction-sections -ffat-lto-objects\000"
+ 673      66756E63 
+ 673      74696F6E 
+ 673      2D736563 
+ 673      74696F6E 
+ 674              	.LASF25:
+ 675 0096 74696D65 		.ascii	"timerPeriod\000"
+ 675      72506572 
+ 675      696F6400 
+ 676              	.LASF9:
+ 677 00a2 5F5F696E 		.ascii	"__int32_t\000"
+ 677      7433325F 
+ 677      7400
+ 678              	.LASF22:
+ 679 00ac 496E7465 		.ascii	"InterruptCnt\000"
+ 679      72727570 
+ 679      74436E74 
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 16
+
+
+ 679      00
+ 680              	.LASF13:
+ 681 00b9 666C6F61 		.ascii	"float\000"
+ 681      7400
+ 682              	.LASF11:
+ 683 00bf 75696E74 		.ascii	"uint8\000"
+ 683      3800
+ 684              	.LASF1:
+ 685 00c5 756E7369 		.ascii	"unsigned char\000"
+ 685      676E6564 
+ 685      20636861 
+ 685      7200
+ 686              	.LASF16:
+ 687 00d3 72656738 		.ascii	"reg8\000"
+ 687      00
+ 688              	.LASF5:
+ 689 00d8 6C6F6E67 		.ascii	"long unsigned int\000"
+ 689      20756E73 
+ 689      69676E65 
+ 689      6420696E 
+ 689      7400
+ 690              	.LASF3:
+ 691 00ea 73686F72 		.ascii	"short unsigned int\000"
+ 691      7420756E 
+ 691      7369676E 
+ 691      65642069 
+ 691      6E7400
+ 692              	.LASF21:
+ 693 00fd 49544D5F 		.ascii	"ITM_RxBuffer\000"
+ 693      52784275 
+ 693      66666572 
+ 693      00
+ 694              	.LASF14:
+ 695 010a 646F7562 		.ascii	"double\000"
+ 695      6C6500
+ 696              	.LASF20:
+ 697 0111 6D61696E 		.ascii	"main\000"
+ 697      00
+ 698              	.LASF12:
+ 699 0116 75696E74 		.ascii	"uint32\000"
+ 699      333200
+ 700              	.LASF8:
+ 701 011d 756E7369 		.ascii	"unsigned int\000"
+ 701      676E6564 
+ 701      20696E74 
+ 701      00
+ 702              	.LASF29:
+ 703 012a 443A5C46 		.ascii	"D:\\FER\\Predmeti\\7. semestar\\SEM1\\Programi\\Tim"
+ 703      45525C50 
+ 703      7265646D 
+ 703      6574695C 
+ 703      372E2073 
+ 704 0157 65723031 		.ascii	"er01\\Timer sa resetiranjem nakon capture-a.cydsn\000"
+ 704      5C54696D 
+ 704      65722073 
+ 704      61207265 
+ 704      73657469 
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 17
+
+
+ 705              	.LASF7:
+ 706 0188 6C6F6E67 		.ascii	"long long unsigned int\000"
+ 706      206C6F6E 
+ 706      6720756E 
+ 706      7369676E 
+ 706      65642069 
+ 707              	.LASF19:
+ 708 019f 496E7465 		.ascii	"InterruptHandler\000"
+ 708      72727570 
+ 708      7448616E 
+ 708      646C6572 
+ 708      00
+ 709              	.LASF10:
+ 710 01b0 696E7433 		.ascii	"int32_t\000"
+ 710      325F7400 
+ 711              	.LASF18:
+ 712 01b8 73697A65 		.ascii	"sizetype\000"
+ 712      74797065 
+ 712      00
+ 713              	.LASF6:
+ 714 01c1 6C6F6E67 		.ascii	"long long int\000"
+ 714      206C6F6E 
+ 714      6720696E 
+ 714      7400
+ 715              	.LASF28:
+ 716 01cf 6D61696E 		.ascii	"main.c\000"
+ 716      2E6300
+ 717              	.LASF15:
+ 718 01d6 63686172 		.ascii	"char\000"
+ 718      00
+ 719              	.LASF2:
+ 720 01db 73686F72 		.ascii	"short int\000"
+ 720      7420696E 
+ 720      7400
+ 721              	.LASF26:
+ 722 01e5 676C6974 		.ascii	"glitchFilterDelay\000"
+ 722      63684669 
+ 722      6C746572 
+ 722      44656C61 
+ 722      7900
+ 723              	.LASF4:
+ 724 01f7 6C6F6E67 		.ascii	"long int\000"
+ 724      20696E74 
+ 724      00
+ 725              	.LASF17:
+ 726 0200 6C6F6E67 		.ascii	"long double\000"
+ 726      20646F75 
+ 726      626C6500 
+ 727              	.LASF0:
+ 728 020c 7369676E 		.ascii	"signed char\000"
+ 728      65642063 
+ 728      68617200 
+ 729              	.LASF24:
+ 730 0218 63617074 		.ascii	"capturedValue\000"
+ 730      75726564 
+ 730      56616C75 
+ 730      6500
+ARM GAS  C:\Users\JAKOVB~2\AppData\Local\Temp\ccgEFXq0.s 			page 18
+
+
+ 731              		.ident	"GCC: (GNU Tools for ARM Embedded Processors) 5.4.1 20160609 (release) [ARM/embedded-5-bran
