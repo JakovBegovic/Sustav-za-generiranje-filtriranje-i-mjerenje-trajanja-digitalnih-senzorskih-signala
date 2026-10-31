@@ -1,11 +1,12 @@
 # Mikrokontrolerski sustav za generiranje, filtriranje i mjerenje trajanja digitalnih senzorskih signala 
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]<br>
+
 Seminarski rad "Mikrokontrolerski sustav za generiranje, filtriranje i mjerenje trajanja digitalnih senzorskih signala" izrađen je za predmet Seminar 1 na Fakultetu elektrotehnike i računarstva s mentorstvom doc. dr. sc. Dinka Oletića.
 <br><br>
 Rad se temelji na 2 mikroupravljača: PSoC 5LP i ESP32. PSoC 5LP se koristi za filtriranje i mjerenje trajanja, a ESP32 za generiranje digitalnog signala proizvoljnog trajanja. Sustav zahtjeva korištenje maksimalne količine vanjskih digitalnih blokova PSoC 5LP-a. 
 
 <br><br>
-Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
-
 This work is licensed under a
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
 
